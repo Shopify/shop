@@ -1,0 +1,10 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "shop",
+  "version": "1.0.2",
+  "description": "Shop across merchants through the Universal Commerce Protocol",
+  "author": {
+    "name": "Shopify"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,17 @@
+{
+  "name": "shop",
+  "plugins": [
+    {
+      "name": "shop",
+      "source": {
+        "source": "local",
+        "path": "./plugins/shop"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Shopping"
+    }
+  ]
+}

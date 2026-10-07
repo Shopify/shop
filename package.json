@@ -1,0 +1,35 @@
+{
+  "name": "@shopify/shop",
+  "version": "1.0.2",
+  "description": "Shop for agents: product discovery, checkout, and Shop order tracking across millions of stores",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Shopify/shop"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.21.0 <23 || >=24.5.0 <25"
+  },
+  "bin": {
+    "shop": "bin/shop.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "skills",
+    "plugins",
+    ".claude-plugin",
+    ".agents",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/postinstall.mjs"
+  }
+}
