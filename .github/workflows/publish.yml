@@ -3,6 +3,9 @@ name: publish
 on:
   push:
     branches: [main]
+  # For when the world changed since the last push: a publication that stopped at a gate (a
+  # private repository, a registry outage) is started again by hand, through the same approval.
+  workflow_dispatch:
 
 # One publication at a time; a second merge waits for the first.
 concurrency:
@@ -49,12 +52,17 @@ jobs:
       - name: Verify the tree being published
         run: node .github/scripts/verify.mjs
 
-      # Reads the version, asks the registry whether it exists, and picks the dist-tag.
+      # Reads the version, asks the registry whether it exists, picks the dist-tag, and asks GitHub
+      # whether the repository is private now: the event payload is a snapshot taken when the run
+      # was created, and a run that waited at the approval gate through a visibility change would
+      # otherwise judge the repository it no longer is.
       - name: Plan
         id: plan
         env:
-          PRIVATE: ${{ github.event.repository.private }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          PRIVATE="$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)"
+          export PRIVATE
           node --input-type=module - <<'EOF' >> "$GITHUB_OUTPUT"
           import { readFileSync } from 'node:fs';
           const { name, version } = JSON.parse(readFileSync('package.json', 'utf8'));
