@@ -1,0 +1,12 @@
+{
+  "name": "shop",
+  "owner": {
+    "name": "Shopify"
+  },
+  "plugins": [
+    {
+      "name": "shop",
+      "source": "./plugins/shop"
+    }
+  ]
+}
