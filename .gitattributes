@@ -1,0 +1,4 @@
+# Bytes must be identical on every checkout: the verifier compares file bytes, and the package ships the checked-out bytes.
+* -text
+# The module is binary.
+*.wasm binary

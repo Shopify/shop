@@ -1,0 +1,114 @@
+name: publish
+
+on:
+  push:
+    branches: [main]
+
+# One publication at a time; a second merge waits for the first.
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write # gh release create
+  id-token: write # trusted publishing; no registry token is stored
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # The environment's required reviewer approves each publication.
+    environment:
+      name: npm-shop
+      url: https://www.npmjs.com/package/@shopify/shop
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Public runners: the pinned public action is the host setup here.
+      # nosemgrep: use-setup-javascript-action
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      # Trusted publishing (OIDC and automatic provenance) requires `npm` 11.5.1 or newer.
+      - name: Require a publisher with trusted publishing (11.5.1 or newer)
+        run: |
+          node --input-type=module - <<'EOF'
+          import { execFileSync } from 'node:child_process';
+          const v = execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim();
+          const [maj, min, pat] = v.split('.').map(Number);
+          const ok = maj > 11 || (maj === 11 && (min > 5 || (min === 5 && pat >= 1)));
+          if (!ok) { console.error(`npm ${v} lacks trusted publishing; need >= 11.5.1`); process.exit(1); }
+          console.log(`npm ${v}`);
+          EOF
+
+      # The same gate pull requests pass, on the exact tree being published.
+      - name: Verify the tree being published
+        run: node .github/scripts/verify.mjs
+
+      # Reads the version, asks the registry whether it exists, and picks the dist-tag.
+      - name: Plan
+        id: plan
+        env:
+          PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          node --input-type=module - <<'EOF' >> "$GITHUB_OUTPUT"
+          import { readFileSync } from 'node:fs';
+          const { name, version } = JSON.parse(readFileSync('package.json', 'utf8'));
+          const response = await fetch(`https://registry.npmjs.org/${name.replace('/', '%2F')}/${version}`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(15_000) });
+          if (response.status !== 200 && response.status !== 404) throw new Error(`registry returned ${response.status} for ${name}@${version}`);
+          console.log(`version=${version}`);
+          console.log(`published=${response.status === 200}`);
+          console.log(`tag=${version.includes('-') ? 'next' : 'latest'}`);
+          console.log(`private=${process.env.PRIVATE}`);
+          EOF
+
+      # Provenance attestations require a public repository; a private one gets a dry run only.
+      - name: Refuse publication from a private repository
+        if: steps.plan.outputs.private == 'true'
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          # `npm` is the registry's own client and the one that performs trusted publishing.
+          # nosemgrep: disallow-npm-npx
+          npm publish --dry-run --access public --ignore-scripts --tag "$TAG"
+          echo "::notice::Publication of @shopify/shop@$VERSION skipped: this repository is private, and provenance attestations require a public one. Only the dry run above ran."
+
+      - name: Skip an already published version
+        if: steps.plan.outputs.private != 'true' && steps.plan.outputs.published == 'true'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: echo "::notice::@shopify/shop@$VERSION is already on the registry; nothing to publish."
+
+      # --ignore-scripts: the postinstall hook is for installers and does not run here.
+      # --provenance: explicit, so a publish that cannot attest fails instead of shipping without provenance.
+      - name: Publish
+        if: steps.plan.outputs.private != 'true' && steps.plan.outputs.published != 'true'
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} # TEMPORARY: first publish only; remove after AI Ops adds OIDC.
+        run: |
+          # `npm` is the registry's own client and the one that performs trusted publishing.
+          # nosemgrep: disallow-npm-npx
+          npm publish --access public --ignore-scripts --provenance --tag "$TAG"
+
+      # Attaches the packed tarball to a GitHub Release; prereleases carry the next tag.
+      - name: Release
+        if: steps.plan.outputs.private != 'true' && steps.plan.outputs.published != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.plan.outputs.tag }}
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          # The same packer that published, so the release asset is the published bytes.
+          # `npm pack` does not create its destination directory (`pnpm pack` does).
+          mkdir -p "$RUNNER_TEMP/pack"
+          # nosemgrep: disallow-npm-npx
+          npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/pack"
+          args=()
+          if [ "$TAG" = next ]; then args+=(--prerelease); fi
+          gh release create "v$VERSION" --generate-notes "${args[@]}" "$RUNNER_TEMP"/pack/*.tgz

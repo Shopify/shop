@@ -1,0 +1,49 @@
+name: verify
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        # The supported hosts and exact Node versions.
+        os: [ubuntu-24.04, macos-15, windows-2022]
+        node: ['22.22.2', '24.16.0']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # On pull_request, HEAD is the merge commit and HEAD^1 is the base tip; the gate diffs the two.
+          fetch-depth: 2
+      # Public runners: the pinned public action is the host setup here.
+      # nosemgrep: use-setup-javascript-action
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      # Nothing to install: the gate uses Node built-ins only.
+      - run: node .github/scripts/verify.mjs
+        env:
+          VERIFY_REGISTRY: https://registry.npmjs.org
+
+  # One stable name for branch protection to require; the matrix rows change, this does not.
+  required:
+    name: required
+    if: ${{ always() }}
+    needs: [verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fail on any failed, cancelled or skipped verify row
+        env:
+          RESULT: ${{ needs.verify.result }}
+        run: test "$RESULT" = success
