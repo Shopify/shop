@@ -1,6 +1,6 @@
 {
   "name": "@shopify/shop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Shop for agents: product discovery, checkout, and Shop order tracking across millions of stores",
   "license": "MIT",
   "repository": {
@@ -25,11 +25,7 @@
     "plugins",
     ".claude-plugin",
     ".agents",
-    "scripts",
     "README.md",
     "LICENSE"
-  ],
-  "scripts": {
-    "postinstall": "node scripts/postinstall.mjs"
-  }
+  ]
 }

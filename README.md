@@ -1,6 +1,6 @@
 # shop
 
-`shop` lets agents search millions of stores, build carts, check out and pay with the shopper's Shop account, and track orders. When a store has no agent checkout, the shopper can approve a purchase on Shop and the agent gets a card to pay at the merchant's own checkout.
+`shop` lets agents search millions of stores, build carts, check out and pay with the shopper's Shop account, and track orders. When a store has no agent checkout, the shopper can approve a purchase on Shop and the agent gets a one-time credential to pay at the site's own checkout.
 
 ## Contents
 
@@ -19,9 +19,10 @@
 
 ```sh
 npm install --global @shopify/shop@latest
+shop skill --install
 ```
 
-This installs the `shop` command and its agent skill. Then ask your agent:
+Installs the `shop` command, then teaches your agent when and how to use it. Then ask your agent:
 
 > Find three rain jackets under US$100 that ship to the US.
 
@@ -284,15 +285,15 @@ Some stores have no agent checkout API (UCP); the agent has to enter a payment c
 
 1. The agent describes the purchase with `shop spend-request create`.
 2. The shopper reviews and approves it on Shop.
-3. The agent gets a card from `shop spend-request get`, good for up to the `approval_limit` the shopper saw and approved.
-4. The agent pays at the merchant's checkout and reports the outcome with `shop spend-request complete`.
+3. `shop spend-request get` returns a one-time credential that fills the card fields of the site's checkout form, good for up to the `approval_limit` the shopper saw and approved.
+4. The agent pays at the site's checkout and reports the outcome with `shop spend-request complete`.
 
-`--instrument-id` is one of the cards from `shop account`. Nested values such as line items take JSON, a `@file`, or `-` for stdin:
+`--instrument-id` names one of the `selectable_instruments` from `shop account`; omit it to use the shopper's preferred card. Nested values such as line items take JSON, a `@file`, or `-` for stdin:
 
 ```sh
 shop spend-request create \
   --business-name "Example Bookshop" --business-url https://example-bookshop.com --business-country US \
-  --currency USD --approval-limit 1495 --instrument-id 3f1e2d4c-5b6a-4789-8abc-def012345678 \
+  --currency USD --approval-limit 1495 \
   --line-item @items.json \
   --total '{"type":"total","amount":1495}'
 ```
@@ -320,7 +321,7 @@ shop spend-request create \
 
 </details>
 
-Give the shopper the `continue_url`, then wait for their approval. `--output-file` keeps the card out of the transcript: the issued instrument is written to a new file only you can read, and stdout carries the status and terms:
+Give the shopper the `continue_url`, then wait for their approval. `--output-file` keeps the credential out of the transcript: the issued instrument is written to a new file only you can read, and stdout carries the status and terms:
 
 ```sh
 shop spend-request get 0198e63b-1234-7abc-8def-123456789abc --wait 90 --output-file ./card.json
@@ -355,9 +356,9 @@ shop spend-request get 0198e63b-1234-7abc-8def-123456789abc --wait 90 --output-f
 
 </details>
 
-The card arrives when the status is `consumed`. Hand the file to the program that fills the checkout form; without `--output-file`, the instrument is returned inline instead.
+The credential arrives when the status is `consumed`. Hand the file to the program that fills the checkout form; without `--output-file`, the instrument is returned inline instead.
 
-After paying at the merchant's checkout, the agent reports the outcome:
+After paying at the site's checkout, the agent reports the outcome:
 
 ```sh
 shop spend-request complete 0198e63b-1234-7abc-8def-123456789abc \
@@ -399,13 +400,11 @@ To use the server without the CLI:
 - Connect an MCP host to `https://mcp.shop.com/` to access the same tools. Sign-in goes through the host's OAuth flow, against the same Shop account, and the tools behave as they do in the CLI.
 - A host that supports the skills extension ([SEP-2640](https://modelcontextprotocol.io/seps/2640-skills-extension)) finds the server's skill with `skills/list` on the same connection and reads its files with `resources/read`, so there is nothing to install. This package bundles the same skill.
 
-To install the skill from this repository:
+Install the skill from an installed `shop` command:
 
 ```sh
-npx skills add Shopify/shop
+shop skill --install
 ```
-
-The npm package's install hook runs the same `skills add` on its bundled copy.
 
 ## Reference
 
@@ -414,7 +413,7 @@ shop --help                 # the command tree
 shop search --help          # a command's flags and examples
 shop search --schema        # its complete input schema
 shop tools                  # every command with its MCP tool, usage and schema, as JSON — for agents
-shop skill                  # the bundled agent guidance, as prose — what `npx skills add` installs
+shop skill                  # the bundled agent guidance, as prose
 ```
 
 Every command accepts `--arguments <JSON|@FILE|->` with the complete argument object from `--schema`.
@@ -433,4 +432,4 @@ Errors use the same JSON envelope, and their `next` steps say what to do:
 {"ok":false,"v":1,"error":{"code":"auth_required","message":"Not signed in on this device","retryable":false,"next":["Run shop account login --wait 0 and show the shopper the verification URL and code","Run shop account login --wait 90 to finish once they approve","Retry this command after signing in"]}}
 ```
 
-To install the bundled skill again without reinstalling the package, run `npx skills add "$(npm root -g)/@shopify/shop/skills/shop" -g -y`.
+Run `shop skill --install` again after upgrading `shop` to replace the installed guidance.

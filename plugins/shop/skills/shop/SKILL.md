@@ -41,7 +41,7 @@ This is notation, not JSON. `?` means optional. Replace `RESOURCE` with `cart` o
 | `update_cart`, `update_checkout` | `{shop,id,RESOURCE:full_document}` |
 | `complete_checkout` | `{shop,id,checkout:{payment:{instruments:[offered_instrument_with_selected_true]}}}`. |
 | `get_account` | `{}` |
-| `create_spend_request` | `{spend_request:{business:{name,url,country},currency,line_items?,totals,shipping_address?,instrument_id,approval_limit,context?:{intent?}},meta?}`; for payment credential entry using a browser. |
+| `create_spend_request` | `{spend_request:{business:{name,url,country},currency,line_items?,totals,shipping_address?,instrument_id?,approval_limit,context?:{intent?}},meta?}`; for payment credential entry using a browser. |
 | `get_spend_request`, `cancel_spend_request` | `{id}`; cancel may add `meta`. Get may issue/replay a credential and is not read-only. |
 | `update_spend_request` | `{id,spend_request:{shipping_address?,line_items?,totals?,approval_limit?},meta?}`. |
 | `complete_spend_request` | `{id,result:{status:"success",order?:{id?,permalink_url?,total?,currency?}}}` or `{id,result:{status:"error",failure_code,message?}}`; present optional fields are non-null. |
