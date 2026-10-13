@@ -12,7 +12,13 @@ Use these fields only when the request needs them. Add them inside `catalog`; ke
 | `filters.rating` | Search only: `{variant:{min?,min_count?}}`; score 0 to 5 and minimum review count. |
 | `filters.available` | `false` includes unavailable items; it does not select only unavailable items. |
 
-Rating thresholds require at least one matching variant, not a product-wide average. Category, condition, origin, and price-tier lists use OR. Different filters use AND. Use known taxonomy IDs and condition values. Read messages for unsupported values. Country codes use two uppercase letters. Currency codes use three uppercase letters. Price bounds are inclusive nonnegative integers in the currency's minor units. Destination and `$` do not establish currency; ask before applying a firm cap when currency is unknown. If returned currency differs from the cap, do not convert or claim compliance; report the mismatch. Product price bounds apply per selected unit unless the user states an order-level budget. For identical units, total divided by quantity is a safe discovery ceiling; enforce the merchant-returned checkout total.
+Rating thresholds require at least one matching variant, not a product-wide average. Category, condition, origin, and price-tier lists use OR. Different filters use AND. Use known taxonomy IDs and condition values. Read messages for unsupported values. Country codes use two uppercase letters. Currency codes use three uppercase letters.
+
+## Price and currency
+
+`context.currency` expresses the user's preferred currency and sets the currency of specified price limits; `min` and `max` use minor units in that currency. Catalog converts limits to apply price filters across currencies of matching offers. Returned offers keep their own price and currency.
+
+Inspect `messages[]` for applied filters, bounds, and conversion details. In `price_filter_applied`, `data.applied_usd` gives applied bounds in USD dollars; offer `price.amount` uses minor units. If conversion was unavailable, leave cross-currency compliance unverified.
 
 ## Select options
 

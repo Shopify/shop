@@ -50,7 +50,7 @@ Use `seller.domain` for `shop`. Keep merchants separate. Copy returned IDs and U
 
 ### Search
 
-Use `query`, `like`, or both. Preserve the user's intent; rewrite only for clarity, and never narrow the search more than what the user asked for. E.g. "Buy me a moisturizer" becomes `query: "moisturizer"` not `query: "well-reviewed moisturizer"`. Put user-stated hard requirements in supported filters. For similarity, use 1 or 2 `like` entries: `{id:product_or_variant_gid}` or `{image:{content_type,data}}`. Image `data` is the image file's base64 bytes, not a URL. Without the bytes, omit the image entry; keep a valid `like` ID entry when known. If neither a usable image nor a product or variant ID is available, describe the item in `query`.
+Use `query` for discovery. Preserve the user's intent; rewrite only for clarity, and never narrow the search more than what the user asked for. E.g. "Buy me a moisturizer" becomes `query: "moisturizer"` not `query: "well-reviewed moisturizer"`. Put user-stated hard requirements in supported filters. Preserve and verify requirements the filters cannot express. For similarity, use one `like` reference: `{id:product_or_variant_gid}` or `{image:{content_type,data}}`. Add `query` to refine an image reference. Image `data` is the image file's base64 bytes, not a URL. Without the bytes, omit the image entry; keep a valid `like` ID entry when known. If neither a usable image nor a product or variant ID is available, describe the item in `query`.
 
 Call `search_catalog` with these arguments for size M rain jackets at most 80 CAD, delivered to Canada:
 
@@ -60,12 +60,12 @@ Call `search_catalog` with these arguments for size M rain jackets at most 80 CA
 
 - `context:{address_country?,address_region?,postal_code?,currency?}`: use known destination and currency.
 - `filters.attributes`: use `Size`, `Color`, or `Target gender`. Filters combine with AND; attribute values combine with OR.
-- `filters.price`: optional `min` and `max` use `context.currency` minor units. A symbol alone does not establish currency. For a firm cap, ask if needed; otherwise omit the filter and compare returned prices in their currency.
+- `filters.price`: set `context.currency` to the limit's currency; `min` and `max` use minor units (80 CAD → 8000). Catalog converts limits for filtering.
 - `filters.ships_to:{country,region?,postal_code?}`: delivery filter. If absent, the context address supplies the destination.
 - `filters.shops:[shop_gid|store_domain]`: use returned `seller.id` values or the store's domain.
 - `pagination:{limit?,cursor?}`: limit 1 to 50, default 10. Use the returned cursor with unchanged search inputs.
 
-Search excludes unavailable items by default. Read messages for ignored filters. Do not drop hard requirements. Repeat relevant context and filters on each catalog call. Search shows one option combination. Size filters and size lists do not prove that combination is in stock. Use `get_product` only for missing facts or another option combination. Copy returned option names and labels. Before recommending or creating a cart or checkout, verify that the selected options match the request. Confirm that selection's stock and price. For additional filters or option relaxation, read [catalog.md](references/catalog.md).
+Search applies availability filtering by default. Inspect `messages[]` for applied filters, conversion details, and ignored inputs. Offers may use other currencies; preserve each offer's returned price and currency. Do not drop hard requirements. Repeat relevant context and filters on each catalog call. Search shows one option combination. Size filters and size lists do not prove that combination is in stock. Use `get_product` only for missing facts or another option combination. Copy returned option names and labels. Before recommending or creating a cart or checkout, verify that the selected options match the request. Confirm that selection's stock and price. For additional filters, option relaxation, or comparing prices across currencies, read [catalog.md](references/catalog.md).
 ### Cart and checkout
 
 Prefer Shop/UCP checkout when available; it needs no separate spend request. For a purchase the agent must complete through a website's card form using a browser, follow the spend-request flow in [transactions.md](references/transactions.md).

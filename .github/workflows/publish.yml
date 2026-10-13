@@ -93,18 +93,18 @@ jobs:
         run: echo "::notice::@shopify/shop@$VERSION is already on the registry; nothing to publish."
 
       # --ignore-scripts: the postinstall hook is for installers and does not run here.
-      # --provenance: explicit, so a publish that cannot attest fails instead of shipping without provenance.
+      # --provenance: explicit, because npm's automatic OIDC provenance is best-effort; a publish that cannot attest fails instead of shipping without provenance.
       - name: Publish
         if: steps.plan.outputs.private != 'true' && steps.plan.outputs.published != 'true'
         env:
           TAG: ${{ steps.plan.outputs.tag }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} # TEMPORARY: first publish only; remove after AI Ops adds OIDC.
         run: |
           # `npm` is the registry's own client and the one that performs trusted publishing.
           # nosemgrep: disallow-npm-npx
           npm publish --access public --ignore-scripts --provenance --tag "$TAG"
 
-      # Attaches the packed tarball to a GitHub Release; prereleases carry the next tag.
+      # Attaches the packed tarball to a GitHub Release whose notes are the release commit's body
+      # (the text the pull request carried); prereleases carry the next tag.
       - name: Release
         if: steps.plan.outputs.private != 'true' && steps.plan.outputs.published != 'true'
         env:
@@ -117,6 +117,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/pack"
           # nosemgrep: disallow-npm-npx
           npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP/pack"
+          # A merge commit's body is empty; the release text is on its second parent's tip.
+          notes="$RUNNER_TEMP/notes.md"
+          git log -1 --format=%b "$(git rev-parse --verify -q HEAD^2 || echo HEAD)" > "$notes"
           args=()
           if [ "$TAG" = next ]; then args+=(--prerelease); fi
-          gh release create "v$VERSION" --generate-notes "${args[@]}" "$RUNNER_TEMP"/pack/*.tgz
+          if [ -s "$notes" ]; then args+=(--notes-file "$notes"); else args+=(--generate-notes); fi
+          gh release create "v$VERSION" "${args[@]}" "$RUNNER_TEMP"/pack/*.tgz
