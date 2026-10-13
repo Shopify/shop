@@ -126,3 +126,51 @@ jobs:
           if [ "$TAG" = next ]; then args+=(--prerelease); fi
           if [ -s "$notes" ]; then args+=(--notes-file "$notes"); else args+=(--generate-notes); fi
           gh release create "v$VERSION" "${args[@]}" "$RUNNER_TEMP"/pack/*.tgz
+
+      # ClawHub (clawhub.ai/shopify/skills/shop) keeps a copy of skills/shop per version and cannot
+      # point at a repository, so the copy is made here, from the tree just published, and numbered
+      # with the package version: `@shopify/shop` on ClawHub names the CLI release whose binary
+      # embeds the same text (`shop skill`). The changelog is the GitHub Release's notes, read back
+      # from the Release so edits made to it are carried too.
+      # A version under ClawHub's post-publish security review is invisible to every read, even the
+      # owner's, so there is no existence check to make beforehand: the server's refusal of a version
+      # it already has is the check, and the success case for a run started again by hand.
+      # ClawHub's trusted publishing covers packages, not skills: this is the one stored credential
+      # in this workflow, an environment secret released only to runs the required reviewer approved.
+      - name: Publish to ClawHub
+        if: steps.plan.outputs.private != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+          CLAWHUB_CONFIG_PATH: ${{ runner.temp }}/clawhub-config.json
+          TAG: ${{ steps.plan.outputs.tag }}
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          if [ -z "$CLAWHUB_TOKEN" ]; then
+            echo "::error::CLAWHUB_TOKEN is not set on the npm-shop environment; ClawHub was not published."
+            exit 1
+          fi
+          node --input-type=module - <<'EOF_CONFIG'
+          import { writeFileSync } from 'node:fs';
+          writeFileSync(process.env.CLAWHUB_CONFIG_PATH, JSON.stringify({ registry: 'https://clawhub.ai', token: process.env.CLAWHUB_TOKEN }) + '\n', { mode: 0o600 });
+          EOF_CONFIG
+          changelog="@shopify/shop $VERSION"
+          notes="$(gh release view "v$VERSION" --json body --jq .body 2>/dev/null || true)"
+          if [ -n "$notes" ]; then changelog="$changelog"$'\n\n'"$notes"; fi
+          changelog="$changelog"$'\n\n'"https://github.com/Shopify/shop/releases/tag/v$VERSION"
+          err="$RUNNER_TEMP/clawhub-publish.err"
+          # The registry's own client, exact-pinned and executed rather than installed.
+          # nosemgrep: disallow-npm-npx
+          if npx --yes clawhub@0.23.3 skill publish ./skills/shop \
+               --owner shopify --slug shop --name Shop \
+               --version "$VERSION" --tags "$TAG" --changelog "$changelog" \
+               --no-input --json 2> "$err"; then
+            cat "$err" >&2
+            exit 0
+          fi
+          cat "$err" >&2
+          if grep -qF "Version $VERSION already exists" "$err"; then
+            echo "::notice::ClawHub already has @shopify/shop $VERSION; nothing to publish there."
+            exit 0
+          fi
+          exit 1
