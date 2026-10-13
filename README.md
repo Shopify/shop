@@ -288,19 +288,20 @@ Some stores have no agent checkout API (UCP); the agent has to enter a payment c
 3. `shop spend-request get` returns a one-time credential that fills the card fields of the site's checkout form, good for up to the `approval_limit` the shopper saw and approved.
 4. The agent pays at the site's checkout and reports the outcome with `shop spend-request complete`.
 
-`--instrument-id` names one of the `selectable_instruments` from `shop account`; omit it to use the shopper's preferred card. Nested values such as line items take JSON, a `@file`, or `-` for stdin:
+`--intent` is required: describe the purchase and rationale in the shopper's language (100–500 characters; no links, card details, emails or addresses) — it is what they read on the Shop approval page. In `--arguments` it is `context.intent`. `--instrument-id` names one of the `selectable_instruments` from `shop account`; omit it to use the shopper's preferred card. `--currency` is the code the site's checkout charges in; never convert. `--business-country` is the business's two-letter country when the site states it; omit it rather than guess. Nested values such as line items take JSON, a `@file`, or `-` for stdin:
 
 ```sh
 shop spend-request create \
-  --business-name "Example Bookshop" --business-url https://example-bookshop.com --business-country US \
-  --currency USD --approval-limit 1495 \
+  --business-name "Ridgeline Running" --business-url https://ridgeline-running.example \
+  --currency USD --approval-limit 12500 \
   --line-item @items.json \
-  --total '{"type":"total","amount":1495}'
+  --total '{"type":"total","amount":12500}' \
+  --intent "The trail running shoes you asked me to order this morning from Ridgeline Running, wide fit, in your usual size"
 ```
 
 ```jsonc
 // items.json
-{ "item": { "title": "Field Notes, 3-pack", "price": 1495 }, "quantity": 1 }
+{ "item": { "title": "Trail running shoe, wide, men's 11", "price": 12500 }, "quantity": 1 }
 ```
 
 <details>
@@ -312,7 +313,7 @@ shop spend-request create \
   "data": {
     "id": "0198e63b-1234-7abc-8def-123456789abc",
     "status": "pending",
-    "approval_limit": 1495,
+    "approval_limit": 12500,
     "continue_url": "https://accounts.shop.app/…",
     "expires_at": "…"
   }
