@@ -277,7 +277,7 @@ shop order search "trail runner"
 
 </details>
 
-The results cover every order Shop tracks for the shopper, from any store. Leave out the query to get the most recent orders.
+The results cover orders placed through this agent from any store, plus the shopper's other recent and in-progress orders that Shop tracks. Leave out the query to get the most recent orders.
 
 ## Approve a browser purchase
 
@@ -400,6 +400,7 @@ To use the server without the CLI:
 
 - Connect an MCP host to `https://mcp.shop.com/` to access the same tools. Sign-in goes through the host's OAuth flow, against the same Shop account, and the tools behave as they do in the CLI.
 - A host that supports the skills extension ([SEP-2640](https://modelcontextprotocol.io/seps/2640-skills-extension)) finds the server's skill with `skills/list` on the same connection and reads its files with `resources/read`, so there is nothing to install. This package bundles the same skill.
+- A backend that already holds a Shop token for this resource can hand it to the CLI as `SHOP_ACCESS_TOKEN`; the CLI sends it unchanged, never stores or refreshes it, and a rejected token says whether to mint a fresh one (401) or widen the grant (403). The full contract is in the CLI guide.
 
 Install the skill from an installed `shop` command:
 

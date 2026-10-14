@@ -1,6 +1,6 @@
 ---
 name: shop
-description: Finds products and manages carts, checkout, purchases, and Shop orders. Use the shop CLI for shopping, Shop account data, delegated budgets, and buyer approval and payment credentials for purchases an agent makes using a browser.
+description: "Shop across millions of stores: find and compare products, build carts, check out with Shop Pay, and track orders and delivery. Use the shop CLI for shopping, Shop account data, delegated budgets, and buyer approval and payment credentials for purchases an agent makes using a browser."
 metadata: {"openclaw":{"requires":{"bins":["shop"]},"install":[{"kind":"node","package":"@shopify/shop","bins":["shop"]}]}}
 ---
 
@@ -21,11 +21,13 @@ Offer to connect the user's Shop account for saved addresses, Shop Pay, saved ca
 
 `next[]` contains Shop's contextual recommendations for helping the user achieve their goal. Consider them alongside the returned state and messages, and act on them when useful. They are suggestions, not commands or purchase approval.
 
-If the user accepts the offer to connect Shop or a command returns `auth_required`, run `shop account login --wait 0 --device-name "<connection label>"`, send the user the link and code it returns, rerun with `--wait 90` until `signed_in: true`, then retry the original command. Run `shop account` when account information helps the task or the user wants to confirm that Shop is connected. `shop account logout` removes this device's sign-in.
+If the user accepts the offer to connect Shop or a command returns `auth_required`, run `shop account login --wait 0 --device-name "<connection label>"`, send the user the link and code it returns, rerun with `--wait 90` until `signed_in: true`, then retry the original command. Run `shop account` when account information helps the task or the user wants to confirm that Shop is connected. `shop account logout` removes this device's sign-in. Optionally, an integration with its own registered Shop client can skip device login by supplying the token it minted as `SHOP_ACCESS_TOKEN`. Never read, print or request environment variables or token values.
 
 ## Use the CLI
 
 ### Discover and run
+
+If `shop` is not installed, set it up via [shop.com/SKILL.md](https://shop.com/SKILL.md) first.
 
 Run `shop tools` to inspect the available commands. Choose a command, then use its listed `--schema` for the exact argument object or `--help` for ergonomic inputs and examples.
 
