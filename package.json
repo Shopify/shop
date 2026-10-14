@@ -1,6 +1,6 @@
 {
   "name": "@shopify/shop",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Shop for agents: product discovery, checkout, and Shop order tracking across millions of stores",
   "license": "MIT",
   "repository": {
@@ -13,7 +13,7 @@
   },
   "type": "module",
   "engines": {
-    "node": ">=22.21.0 <23 || >=24.5.0 <25"
+    "node": ">=22.21.0 <23 || >=24.5.0"
   },
   "bin": {
     "shop": "bin/shop.mjs"

@@ -13,9 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The supported hosts and exact Node versions.
+        # The supported hosts and one exact version per supported Node line.
         os: [ubuntu-24.04, macos-15, windows-2022]
-        node: ['22.22.2', '24.16.0']
+        node: ['22.22.2', '24.16.0', '26.11.1']
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:

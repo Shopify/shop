@@ -65,7 +65,7 @@ On `auth_required`, follow the binding's sign-in path, then retry. A missing fie
 
 ## Search orders
 
-Use `search_orders` for personal orders. Sign-in is required. Do not ask for a merchant order ID first. Use query text for merchant, item, or order number.
+Use `search_orders` for personal orders. Sign-in is required. Do not ask for a merchant order ID first. Use query text for merchant, item, or order number. Results are the orders placed through this app plus the shopper's other recent or in-progress orders; an older order placed elsewhere is not returned, so treat its absence as out of view, not as nonexistent.
 
 | Optional field | Values |
 |---|---|
