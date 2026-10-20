@@ -1,10 +1,61 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "shop",
-  "version": "1.1.1",
-  "description": "Shop across merchants through the Universal Commerce Protocol",
+  "version": "1.2.0",
+  "description": "Shop across millions of stores: find and compare over a billion products, build carts, check out with Shop Pay, and track orders and deliveries.",
   "author": {
-    "name": "Shopify"
+    "name": "Shopify",
+    "url": "https://shop.com"
   },
-  "license": "MIT"
+  "homepage": "https://github.com/Shopify/shop",
+  "repository": "https://github.com/Shopify/shop",
+  "license": "MIT",
+  "keywords": [
+    "shop",
+    "shop app",
+    "shop pay",
+    "shopify",
+    "shopping",
+    "buy",
+    "products",
+    "price comparison",
+    "cart",
+    "checkout",
+    "orders",
+    "order tracking",
+    "delivery",
+    "ecommerce",
+    "ucp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Shop",
+        "shortDescription": "Shop millions of stores",
+        "longDescription": "Shop across millions of stores: find and compare over a billion products, build carts, and check out. Sign in with Shop to pay with Shop Pay, use your saved addresses, get results personalized to you, and track your orders and deliveries. At stores that don't support Shop Pay directly, approve the purchase and your agent completes it with a single-use card.",
+        "developerName": "Shopify",
+        "category": "Shopping",
+        "capabilities": [
+          "Search over 1 billion products from millions of stores",
+          "Compare products, prices and options",
+          "Build carts and check out",
+          "Pay with Shop Pay and saved addresses",
+          "Track orders and deliveries",
+          "Approve single-use card purchases at stores without Shop Pay"
+        ],
+        "websiteURL": "https://shop.com",
+        "supportURL": "https://help.shop.app/",
+        "privacyPolicyURL": "https://www.shopify.com/legal/privacy/consumers",
+        "termsOfServiceURL": "https://shop.com/terms-of-service",
+        "defaultPrompt": [
+          "Find a waterproof running jacket under $150 that ships to Canada",
+          "Compare ceramic coffee drippers under $40",
+          "What's on its way?"
+        ],
+        "brandColor": "#5433EB",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      }
+    }
+  }
 }

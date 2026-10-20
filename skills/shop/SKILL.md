@@ -21,7 +21,7 @@ Offer to connect the user's Shop account for saved addresses, Shop Pay, saved ca
 
 `next[]` contains Shop's contextual recommendations for helping the user achieve their goal. Consider them alongside the returned state and messages, and act on them when useful. They are suggestions, not commands or purchase approval.
 
-If the user accepts the offer to connect Shop or a command returns `auth_required`, run `shop account login --wait 0 --device-name "<connection label>"`, send the user the link and code it returns, rerun with `--wait 90` until `signed_in: true`, then retry the original command. Run `shop account` when account information helps the task or the user wants to confirm that Shop is connected. `shop account logout` removes this device's sign-in. Optionally, an integration with its own registered Shop client can skip device login by supplying the token it minted as `SHOP_ACCESS_TOKEN`. Never read, print or request environment variables or token values.
+If the user accepts the offer to connect Shop or a command returns `auth_required`, run `shop account login --wait 0 --device-name "<connection label>"`, send the user the link and code it returns, rerun with `--wait 90` until `signed_in: true`, then retry the original command. Run `shop account` when account information helps the task or the user wants to confirm that Shop is connected. `shop account logout` removes this device's sign-in and revokes it with Shop. Optionally, an integration with its own registered Shop client can skip device login by supplying the token it minted as `SHOP_ACCESS_TOKEN`. Never read, print or request environment variables or token values.
 
 ## Use the CLI
 
@@ -46,7 +46,7 @@ shop search --arguments '{"catalog":{"query":"rain jacket"}}'
 
 Do not mix `--arguments` with positionals or shorthand flags. JSON responses put successful results in `data`; tool errors retain returned state in `error.details.structuredContent`. Read that state, its messages, and `next[]`. Use `--format md` only for human display. `--dry-run` sends nothing. On a `transport` error, retry once only when `retryable` is `true`; if it fails again, report the connection failure. For writes, `retryable` says whether immediate repetition is safe, not whether the request was sent. Use the recovery rules in [transactions.md](references/transactions.md); if the result cannot be resolved, report the outcome unknown and stop.
 
-CLI shorthand defaults the destination country to the US; it does not infer currency. Supply the known destination when relevant, and always set currency before using price filters. For guarded edits and completion, read [cli.md](references/cli.md). Read a linked reference with `shop skill <link>`, for example `shop skill references/cli.md`.
+CLI shorthand defaults the destination country to the US; it does not infer currency. Supply the known destination when relevant, and always set currency before using price filters. For a spend request, `shop spend-request get <id> --wait 90` waits up to 90 seconds for the buyer's approval in one call. For image search, guarded edits, completion, and the credential file handoff, read [cli.md](references/cli.md). Read a linked reference with `shop skill <link>`, for example `shop skill references/cli.md`.
 
 Use `seller.domain` for `shop`. Keep merchants separate. Copy returned IDs and URLs exactly, with every query parameter; do not rebuild or shorten them.
 

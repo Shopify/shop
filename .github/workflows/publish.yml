@@ -94,7 +94,7 @@ jobs:
           VERSION: ${{ steps.plan.outputs.version }}
         run: echo "::notice::@shopify/shop@$VERSION is already on the registry; nothing to publish."
 
-      # --ignore-scripts: the postinstall hook is for installers and does not run here.
+      # --ignore-scripts: the package declares no lifecycle scripts, and none may run here.
       # --provenance: explicit, because npm's automatic OIDC provenance is best-effort; a publish that cannot attest fails instead of shipping without provenance.
       - name: Publish
         if: steps.plan.outputs.private != 'true' && steps.plan.outputs.published != 'true'

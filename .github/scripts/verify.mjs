@@ -15,9 +15,17 @@ const GOVERNANCE = ['.github/', '.gitattributes', '.gitignore', 'SECURITY.md', '
 const PLUGIN_MANIFESTS = [
   'plugins/shop/plugin.json',
   'plugins/shop/.claude-plugin/plugin.json',
-  'plugins/shop/.codex-plugin/plugin.json',
+  'plugins/shop/.cursor-plugin/plugin.json',
 ];
 const PLUGIN_SOURCE = './plugins/shop';
+// One logo per format; each host overlay names it under its own field. Paths are plugin-relative.
+const PLUGIN_LOGOS = ['assets/logo.svg', 'assets/logo.png'];
+const LOGO_FIELDS = [
+  ['plugins/shop/.cursor-plugin/plugin.json', ['logo']],
+  ['plugins/shop/.claude-plugin/plugin.json', ['icon']],
+  ['plugins/shop/plugin.json', ['extensions', 'com.openai', 'interface', 'logo']],
+  ['plugins/shop/plugin.json', ['extensions', 'com.openai', 'interface', 'composerIcon']],
+];
 
 const native = (posixPath) => join(root, ...posixPath.split('/'));
 const parseJson = (text, label) => {
@@ -96,6 +104,11 @@ async function main() {
   const claudeEntry = (claude.plugins || []).find((entry) => entry?.name === 'shop');
   assert.ok(claudeEntry, '.claude-plugin/marketplace.json: missing plugin entry named "shop"');
   assert.ok(claudeEntry.source === PLUGIN_SOURCE, `.claude-plugin/marketplace.json: plugin "shop" source must be ${PLUGIN_SOURCE}`);
+  const cursor = readJson('.cursor-plugin/marketplace.json');
+  assert.ok(cursor.name === 'shop', '.cursor-plugin/marketplace.json: name must be "shop"');
+  const cursorEntry = (cursor.plugins || []).find((entry) => entry?.name === 'shop');
+  assert.ok(cursorEntry, '.cursor-plugin/marketplace.json: missing plugin entry named "shop"');
+  assert.ok(cursorEntry.source === PLUGIN_SOURCE, `.cursor-plugin/marketplace.json: plugin "shop" source must be ${PLUGIN_SOURCE}`);
   const agents = readJson('.agents/plugins/marketplace.json');
   assert.ok(agents.name === 'shop', '.agents/plugins/marketplace.json: name must be "shop"');
   const agentsEntry = (agents.plugins || []).find((entry) => entry?.name === 'shop');
@@ -103,7 +116,18 @@ async function main() {
   assert.ok(agentsEntry.source?.path === PLUGIN_SOURCE, `.agents/plugins/marketplace.json: plugin "shop" source.path must be ${PLUGIN_SOURCE}`);
   const pluginDir = native(PLUGIN_SOURCE.replace(/^\.\//, ''));
   assert.ok(existsSync(pluginDir) && statSync(pluginDir).isDirectory(), `${PLUGIN_SOURCE} is not a directory in this checkout`);
-  pass('both marketplace catalogs name "shop" and resolve to plugins/shop');
+  pass('all three marketplace catalogs name "shop" and resolve to plugins/shop');
+
+  // (d2) every overlay's logo reference resolves to a shipped file
+  for (const logo of PLUGIN_LOGOS) {
+    const file = native(`plugins/shop/${logo}`);
+    assert.ok(existsSync(file) && statSync(file).isFile(), `plugins/shop/${logo} is missing; the plugin manifests reference it`);
+  }
+  for (const [manifest, keys] of LOGO_FIELDS) {
+    const value = keys.reduce((node, key) => (node && typeof node === 'object' ? node[key] : undefined), readJson(manifest));
+    assert.ok(typeof value === 'string' && PLUGIN_LOGOS.includes(value.replace(/^\.\//, '')), `${manifest}: ${keys.join('.')} must name one of ${PLUGIN_LOGOS.join(', ')}; found ${JSON.stringify(value)}`);
+  }
+  pass(`logo references resolve to ${PLUGIN_LOGOS.length} shipped files`);
 
   // (e) the module runs under this Node and reports the package version
   const banner = shop('--version').toString('utf8');
