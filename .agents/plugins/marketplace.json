@@ -1,5 +1,8 @@
 {
   "name": "shop",
+  "interface": {
+    "displayName": "Shop"
+  },
   "plugins": [
     {
       "name": "shop",

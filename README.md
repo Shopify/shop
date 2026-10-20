@@ -277,7 +277,7 @@ shop order search "trail runner"
 
 </details>
 
-The results cover orders placed through this agent from any store, plus the shopper's other recent and in-progress orders that Shop tracks. Leave out the query to get the most recent orders.
+The results cover every order Shop tracks for the shopper, from any store. By default only in-progress orders are shown; pass `--status all` to search the full order history.
 
 ## Approve a browser purchase
 
@@ -426,7 +426,7 @@ Every command accepts `--arguments <JSON|@FILE|->` with the complete argument ob
 | 1 | no response from the network |
 | 2 | usage error |
 | 3 | sign-in required |
-| 4 | the merchant or Shop answered with an error |
+| 4 | the merchant or Shop answered with an error, or a precondition failed |
 
 Errors use the same JSON envelope, and their `next` steps say what to do:
 

@@ -1,0 +1,16 @@
+{
+  "name": "shop",
+  "owner": {
+    "name": "Shopify"
+  },
+  "metadata": {
+    "description": "Shop for agents: product discovery, checkout, and Shop order tracking across millions of stores"
+  },
+  "plugins": [
+    {
+      "name": "shop",
+      "source": "./plugins/shop",
+      "description": "Shop across millions of stores: find and compare over a billion products, build carts, check out with Shop Pay, and track orders and deliveries."
+    }
+  ]
+}

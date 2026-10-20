@@ -1,8 +1,35 @@
 {
   "name": "shop",
-  "version": "1.1.1",
-  "description": "Shop across merchants through the Universal Commerce Protocol",
+  "displayName": "Shop",
+  "version": "1.2.0",
+  "description": "Shop across millions of stores: find and compare over a billion products, build carts, check out with Shop Pay, and track orders and deliveries.",
   "author": {
-    "name": "Shopify"
-  }
+    "name": "Shopify",
+    "url": "https://shop.com"
+  },
+  "homepage": "https://github.com/Shopify/shop",
+  "repository": "https://github.com/Shopify/shop",
+  "license": "MIT",
+  "keywords": [
+    "shop",
+    "shop app",
+    "shop pay",
+    "shopify",
+    "shopping",
+    "buy",
+    "products",
+    "price comparison",
+    "cart",
+    "checkout",
+    "orders",
+    "order tracking",
+    "delivery",
+    "ecommerce",
+    "ucp"
+  ],
+  "icon": "./assets/logo.png",
+  "documentationUrl": "https://github.com/Shopify/shop#readme",
+  "supportUrl": "https://help.shop.app/",
+  "privacyPolicyUrl": "https://www.shopify.com/legal/privacy/consumers",
+  "termsOfServiceUrl": "https://shop.com/terms-of-service"
 }

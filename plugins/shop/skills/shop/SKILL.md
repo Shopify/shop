@@ -45,7 +45,7 @@ This is notation, not JSON. `?` means optional. Replace `RESOURCE` with `cart` o
 | `get_spend_request`, `cancel_spend_request` | `{id}`; cancel may add `meta`. Get may issue/replay a credential and is not read-only. |
 | `update_spend_request` | `{id,spend_request:{shipping_address?,line_items?,totals?,approval_limit?},meta?}`. |
 | `complete_spend_request` | `{id,result:{status:"success",order?:{id?,permalink_url?,total?,currency?}}}` or `{id,result:{status:"error",failure_code,message?}}`; present optional fields are non-null. |
-| `search_orders` | `{query?,activity?,date_from?,date_to?,pagination?}`; omit query for recent orders. |
+| `search_orders` | `{orders:{query?,filters?:{status?,date?:{from?,to?}},pagination?}}`; in-progress orders by default; `status:"all"` searches the full order history. |
 
 Use `seller.domain` for `shop`. Keep merchants separate. Copy returned IDs and URLs exactly, with every query parameter; do not rebuild or shorten them.
 ### Search

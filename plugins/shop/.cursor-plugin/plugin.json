@@ -1,0 +1,39 @@
+{
+  "name": "shop",
+  "displayName": "Shop",
+  "version": "1.2.0",
+  "description": "Shop across millions of stores: find and compare over a billion products, build carts, and check out. Sign in with Shop to pay with Shop Pay, use your saved addresses, get results personalized to you, and track your orders and deliveries. At stores that don't support Shop Pay directly, approve the purchase and your agent completes it with a single-use card.",
+  "author": {
+    "name": "Shopify"
+  },
+  "homepage": "https://shop.com",
+  "repository": "https://github.com/Shopify/shop",
+  "license": "MIT",
+  "logo": "assets/logo.svg",
+  "keywords": [
+    "shop",
+    "shop app",
+    "shop pay",
+    "shopify",
+    "shopping",
+    "buy",
+    "products",
+    "price comparison",
+    "cart",
+    "checkout",
+    "orders",
+    "order tracking",
+    "delivery",
+    "ecommerce",
+    "ucp"
+  ],
+  "category": "integrations",
+  "tags": [
+    "shop",
+    "shopping",
+    "ecommerce",
+    "shop-pay",
+    "mcp"
+  ],
+  "skills": "./skills/"
+}
