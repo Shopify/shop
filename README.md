@@ -88,7 +88,7 @@ Beyond a text query, a search can be shaped three ways:
 ```sh
 shop search --like-image ./jacket.jpg --ships-to US
 shop search --like-id gid://shopify/p/7Qk2mN9pR4sT6vW8xY0zA1 --limit 3
-shop search "trail shoes" --intent "wide feet, wet Pacific Northwest trails" --price-max 20000 --size 11
+shop search "trail shoes" --intent "wide feet, wet Pacific Northwest trails" --currency USD --price-max 20000 --size 11
 ```
 
 Every variant also has a `checkout_url`, a buy-now link to the merchant's checkout. A shopper signed in to Shop sees a one-tap review screen there. They can approve the purchase as it is, or change the delivery option, payment method, discounts, and more first.
@@ -154,13 +154,17 @@ shop account
       "street_address": "1 Example Way", "address_locality": "London", "address_country": "GB", "postal_code": "SW1A 1AA"
     }],
     "preferred_address_id": "address-a",
+    "spend_permissions": [{
+      "id": "spend-permission-a", "status": "active", "currency": "USD",
+      "limit": 10000, "period": { "interval": "month", "ends_at": "…" },
+      "allowance": { "status": "available", "remaining": 8000 }
+    }],
     "selectable_instruments": [{
       "id": "3f1e2d4c-5b6a-4789-8abc-def012345678",
       "type": "shop_pay",
       "display": { "funding_instrument": { "type": "card", "brand": "visa", "last_digits": "4242" } }
     }],
     "preferred_instrument_id": "3f1e2d4c-5b6a-4789-8abc-def012345678",
-    "payment": { "instruments": [{ "type": "shop_pay", "display": { "limit": 10000, "remaining_amount": 8000, "renewal_type": "monthly" } }] }
     // …links, messages
   }
 }
@@ -172,7 +176,7 @@ The response has the shopper's saved details, each with an `id`:
 
 - `addresses`: saved delivery addresses. `preferred_address_id` is the one the shopper prefers.
 - `selectable_instruments`: saved Shop Pay cards. `preferred_instrument_id` is the one the shopper prefers.
-- `payment.instruments[].display`: a budget, if the shopper set one on shop.com and delegated it to agents. It shows the limit, how much remains, and how often it renews. Within that limit, the agent can complete purchases without asking for approval each time.
+- `spend_permissions`: what the shopper allowed this agent to spend ahead of time on shop.com. Each may set a total `limit`, a `per_purchase_limit` and a `period` after which the limit starts over (none means it never does), in minor units of its own currency, and shows how much of the limit remains; a permission can also set no money limit at all. Within a permission, the agent can complete Shop Pay purchases without asking for approval each time. When it is missing, `messages` says why.
 
 When a checkout needs a destination or a payment instrument, the agent passes one of these `id`s. It never types an address or asks for a card number.
 
@@ -435,3 +439,7 @@ Errors use the same JSON envelope, and their `next` steps say what to do:
 ```
 
 Run `shop skill --install` again after upgrading `shop` to replace the installed guidance.
+
+---
+
+_By accessing or using Shopify technology, or any data or content provided through it, you agree to the [Shopify API Terms](https://www.shopify.com/legal/api-terms)._
