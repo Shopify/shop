@@ -1,6 +1,6 @@
 ---
 name: shop
-description: "Shop across millions of stores: find and compare products, build carts, check out with Shop Pay, and track orders and delivery. Use the shop CLI for shopping, Shop account data, delegated budgets, and buyer approval and payment credentials for purchases an agent makes using a browser."
+description: "Shop across millions of stores: find and compare products, find stores near you, build carts, check out with Shop Pay, and track orders and delivery. Use the shop CLI for shopping, Shop account data, spend permissions, and buyer approval and payment credentials for purchases an agent makes using a browser."
 metadata: {"openclaw":{"requires":{"bins":["shop"]},"install":[{"kind":"node","package":"@shopify/shop","bins":["shop"]}]}}
 ---
 
@@ -27,7 +27,7 @@ If the user accepts the offer to connect Shop or a command returns `auth_require
 
 ### Discover and run
 
-If `shop` is not installed, set it up via [shop.com/SKILL.md](https://shop.com/SKILL.md) first.
+If `shop` is not installed, set it up via [shop.com/SKILL.md](https://shop.com/SKILL.md) first. Run `shop doctor` to diagnose errors and act on its `next[]`.
 
 Run `shop tools` to inspect the available commands. Choose a command, then use its listed `--schema` for the exact argument object or `--help` for ergonomic inputs and examples.
 
@@ -35,7 +35,7 @@ Use task commands such as:
 
 ```sh
 shop search "rain jacket"
-shop checkout create --shop example.com --variant '<variant-id>' --quantity 1
+shop checkout create --shop example-store.com --variant '<variant-id>' --quantity 1
 ```
 
 Build an argument object that matches `--schema`, then pass it to that command with `--arguments`:
@@ -44,9 +44,9 @@ Build an argument object that matches `--schema`, then pass it to that command w
 shop search --arguments '{"catalog":{"query":"rain jacket"}}'
 ```
 
-Do not mix `--arguments` with positionals or shorthand flags. JSON responses put successful results in `data`; tool errors retain returned state in `error.details.structuredContent`. Read that state, its messages, and `next[]`. Use `--format md` only for human display. `--dry-run` sends nothing. On a `transport` error, retry once only when `retryable` is `true`; if it fails again, report the connection failure. For writes, `retryable` says whether immediate repetition is safe, not whether the request was sent. Use the recovery rules in [transactions.md](references/transactions.md); if the result cannot be resolved, report the outcome unknown and stop.
+Do not mix `--arguments` with positionals or shorthand flags. JSON responses put successful results in `data`; tool errors retain returned state in `error.details.structuredContent`. Read that state, its messages, and `next[]`. Use `--format md` only for human display. `--dry-run` sends nothing. On a `transport` error, retry once only when `retryable` is `true`; if it fails again, report the connection failure. For write failures, follow the purchase-path guidance in [transactions.md](references/transactions.md).
 
-CLI shorthand defaults the destination country to the US; it does not infer currency. Supply the known destination when relevant, and always set currency before using price filters. For a spend request, `shop spend-request get <id> --wait 90` waits up to 90 seconds for the buyer's approval in one call. For image search, guarded edits, completion, and the credential file handoff, read [cli.md](references/cli.md). Read a linked reference with `shop skill <link>`, for example `shop skill references/cli.md`.
+CLI shorthand defaults the destination country to the US; it does not infer currency. Supply the known destination when relevant, and always set currency before using price filters. For a spend request, `shop spend-request get <id> --include card --wait 90` waits for the buyer to approve the request and returns the issued card; omit `--include card` to read status and terms only. For image search, store lookup, guarded edits, completion, and the credential file handoff, read [cli.md](references/cli.md). Read a linked reference with `shop skill <link>`, for example `shop skill references/cli.md`.
 
 Use `seller.domain` for `shop`. Keep merchants separate. Copy returned IDs and URLs exactly, with every query parameter; do not rebuild or shorten them.
 
@@ -68,10 +68,13 @@ Call `search_catalog` with these arguments for size M rain jackets at most 80 CA
 - `pagination:{limit?,cursor?}`: limit 1 to 50, default 10. Use the returned cursor with unchanged search inputs.
 
 Search applies availability filtering by default. Inspect `messages[]` for applied filters, conversion details, and ignored inputs. Offers may use other currencies; preserve each offer's returned price and currency. Do not drop hard requirements. Repeat relevant context and filters on each catalog call. Search shows one option combination. Size filters and size lists do not prove that combination is in stock. Use `get_product` only for missing facts or another option combination. Copy returned option names and labels. Before recommending or creating a cart or checkout, verify that the selected options match the request. Confirm that selection's stock and price. For additional filters, option relaxation, or comparing prices across currencies, read [catalog.md](references/catalog.md).
+### Stores
+
+`search_locations` finds a shop's physical stores; `lookup_locations` retrieves the stores for location IDs you already hold. `shop` is the offer's `seller.domain`. Search by place (`query`: city, neighborhood, street or postal code, as the user said it), by radius (`distance`: only with coordinates the user or host supplied — never guess a center), or by item (`filters.items` with the offer's variant IDs, to find stores that carry them). Read `messages[]` and `next[]`: they say when a shop has no store directory, when nothing matched, and how to refine.
 ### Cart and checkout
 
 Prefer Shop/UCP checkout when available; it needs no separate spend request. For a purchase the agent must complete through a website's card form using a browser, follow the spend-request flow in [transactions.md](references/transactions.md).
 
 Create or update only on request. Estimate tentative changes without editing. Use `create_checkout` to prepare checkout, or `create_cart` for a requested cart. Use exact variant IDs and quantities. Return each merchant's complete `continue_url` alongside its items, even when you could complete the purchase yourself. Display every warning; informational messages should be displayed. Keep disclosures visible at their referenced target with supplied images and links. If the medium cannot comply, use a supplied buyer-review link or explain the limitation. For `requires_escalation`, ask the user to open the checkout link and finish the required step. Only `status:completed` with an `order` confirms a purchase. If checkout reports missing delivery details, call `get_account`. Copy one `addresses[]` entry unchanged into the checkout update's `fulfillment.methods[].destinations[]`, and set that method's `selected_destination_id` to the entry's `id`. Prefer the entry named by `preferred_address_id` unless the user names another. Never invent or edit address fields, and keep the normal buyer confirmation before completion.
 
-Before an edit, read the edit section of [transactions.md](references/transactions.md) and get current state. Cart/checkout updates replace the full document. Copy current state, then change only requested fields. Preserve line IDs, unrelated fields, empty objects/arrays, and unknown extensions. When preparing the full mutation document, exclude the response-only root `next`; remove fetched `signals` and `attribution`. Never send only changed fields for those updates. Before completion, read the purchase section of [transactions.md](references/transactions.md). Purchase requires explicit approval of the merchant, items, quantities, current total, and the offered checkout instrument. After an uncertain write, reconcile by reading the resource or repeating the original keyed request. Keep the same arguments/key; never start a new purchase or replace a spend request merely to recover that operation. Never repeat `complete_checkout`, even with the same key; reconcile an uncertain completion only by reading `get_checkout`. If no allowed path resolves it, report unknown and stop. For account details or orders, read the relevant section of [transactions.md](references/transactions.md).
+Before an edit, read the edit section of [transactions.md](references/transactions.md) and get current state. Cart/checkout updates replace the full document. Copy current state, then change only requested fields. Preserve line IDs, unrelated fields, empty objects/arrays, and unknown extensions. When preparing the full mutation document, exclude the response-only root `next`; remove fetched `signals` and `attribution`. Never send only changed fields for those updates. Before completion, read the purchase section of [transactions.md](references/transactions.md). Purchase requires explicit approval of the merchant, items, quantities, current total, and the offered checkout instrument. After an uncertain cart or checkout write, reconcile by reading the resource or repeating the original keyed request. Keep the same arguments/key; never start a new purchase or replace a spend request merely to recover that operation. Never repeat `complete_checkout`, even with the same key; reconcile an uncertain completion only by reading `get_checkout`. If no allowed path resolves it, report unknown and stop. For account details or orders, read the relevant section of [transactions.md](references/transactions.md).

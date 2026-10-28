@@ -8,6 +8,18 @@ Use `shop search --like-image photo.jpg`, optionally with a text query. Files an
 
 The complete request must fit 4 MiB after base64 and JSON framing; a usable file is therefore smaller than 3 MiB, depending on other arguments and metadata. If a local `invalid_input` names the framing limit, resize the image or reduce other arguments before submitting again. No request was sent for that refusal.
 
+## Find stores
+
+Search a business's physical stores by place words, or by a radius around coordinates the user gave; narrow to stores that can currently provide a variant with `--item`:
+
+```sh
+shop location search 'New York' --shop '<seller.domain>'
+shop location search --shop '<seller.domain>' --center-latitude 40.7227 --center-longitude -73.9946 --distance-max 5000 --item '<variant-id>'
+shop location lookup '<location-id>' --shop '<seller.domain>' --item '<variant-id>'
+```
+
+The three distance flags travel together. `--item` repeats or takes a comma-separated list; `--country` helps resolve the variants. Read `messages[]` and `next[]` in the result.
+
 ## Cart to checkout
 
 Create checkout from a returned cart:
@@ -37,12 +49,18 @@ shop checkout complete '<checkout-id>' --shop '<seller.domain>' --instrument @in
 # Or pipe the exact JSON object on stdin and pass: --instrument -
 ```
 
-Use `@FILE` or stdin for an object that contains a credential or other secret so it does not enter argv or shell history. Use inline JSON only when the complete instrument is demonstrably non-secret. The CLI preserves every instrument field and extension, sets only root `selected:true`, and sends exactly one `complete_checkout`; it does not fetch, preflight readiness, look up an id/handler/display value, choose a default, or accept multiple instruments. The merchant remains authoritative for freshness, readiness, and whether the instrument is still offered. Do not independently infer completion authority from the account's budget. Only a returned `completed` checkout with an order confirms the purchase. No separate spend request is needed for this checkout, even when buyer review opens in a browser. Never switch to a spend request after an API failure, timeout, decline, or escalation.
+Use `@FILE` or stdin for an object that contains a credential or other secret so it does not enter argv or shell history. Use inline JSON only when the complete instrument is demonstrably non-secret. The CLI preserves every instrument field and extension, sets only root `selected:true`, and sends exactly one `complete_checkout`; it does not fetch, preflight readiness, look up an id/handler/display value, choose a default, or accept multiple instruments. The merchant remains authoritative for freshness, readiness, and whether the instrument is still offered. Do not independently infer completion authority from the account's spend permissions. Only a returned `completed` checkout with an order confirms the purchase. No separate spend request is needed for this checkout, even when buyer review opens in a browser. Never switch to a spend request after an API failure, timeout, decline, or escalation.
 
-## Approve a purchase for browser checkout
+## Pay through a website's card form
 
-Follow the spend-request flow in [transactions.md](transactions.md). Use command help for shorthand or exact argument mode.
+Follow the purchase flow in [transactions.md](transactions.md). Use command help or `--schema` for the purchase terms and approval text.
 
-Create the spend request with the purchase terms, spending limit and `--intent`, the text the user will read on Shop's approval page (and a saved card only if the user chose one), then share the returned `continue_url` unchanged for review and approval. After approval, run `shop spend-request get '<spend-request-id>' --wait 90` to get the payment credential. Use it unchanged in the website's checkout form. After the purchase attempt, use `shop spend-request complete` to report `success` or `error`, with order details when available or failure information for an error. On `auth_required`, follow the entrypoint's sign-in flow.
+Wait for the buyer to approve the request and retrieve the issued card in one call:
 
-For file-based credential handoff, add `--output-file <path>` to get. The new file contains `{spend_request_id,instrument}` with the complete issued instrument. Stdout retains status and approved terms, replacing the instrument with `credential_output_file`. Give the file directly to the consuming program; do not print its contents into chat. Existing files are refused and the caller owns cleanup. POSIX files are created mode `0600`; on Windows, choose a directory with private ACLs. Browser-hosted Shop cannot export files. `--dry-run` creates nothing.
+```sh
+shop spend-request get '<spend-request-id>' --include card --wait 90
+```
+
+Omit `--include card` to read status and terms only. For private file handoff, add `--output-file payment.json` to the same command. It requires explicit card selection and writes a new `{spend_request_id,card}` file; stdout contains `credential_output_file` instead of the card. Give the file directly to the consuming program without printing its contents.
+
+Existing files are refused; the caller owns cleanup. POSIX files are mode `0600`; on Windows, use a directory with private ACLs. Browser-hosted Shop cannot export files. `--dry-run` creates nothing.

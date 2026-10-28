@@ -16,7 +16,7 @@ Mutations accept `meta:{"idempotency-key":uuid}`. Reuse the UUID only for the sa
 ## Complete a checkout
 
 1. Inspect the latest checkout returned by `create_checkout`, `update_checkout`, or `get_checkout`, including status, items, totals, messages, and `payment.instruments`. If it may be stale, call `get_checkout` first.
-2. Treat checkout status as authoritative. Resolve `incomplete` messages. For `requires_escalation`, give the user its `continue_url`. Proceed only from `ready_for_complete`; do not recreate Checkout's eligibility decision from `get_account` budget data.
+2. Treat checkout status as authoritative. Resolve `incomplete` messages. For `requires_escalation`, give the user its `continue_url`. Proceed only from `ready_for_complete`; do not recreate Checkout's eligibility decision from `get_account` spend permissions.
 3. Present the offered instruments and have the user confirm one exact instrument with the current merchant, items, quantities, and total. Copy that full object exactly as returned, preserving every field and extension; never choose a default, resolve by id/handler/display, or invent a credential or token.
 4. Send `complete_checkout` exactly once; never repeat it, even with the same idempotency key. Add `selected: true` at the top level of the copied instrument, change nothing else, and send it as the single entry in `payment.instruments`:
 
@@ -24,42 +24,40 @@ Mutations accept `meta:{"idempotency-key":uuid}`. Reuse the UUID only for the sa
 {shop,id,checkout:{payment:{instruments:[exact_confirmed_instrument_with_selected_true]}}}
 ```
 
-The merchant remains authoritative for freshness, readiness, and whether the instrument is still offered. A budget shown by `get_account` explains the user's delegated wallet settings; checkout status is the completion decision. No separate spend request is needed for `create_checkout` or `complete_checkout`, even when buyer review opens in a browser. API failure or escalation is not permission to switch to a spend request. Report every returned message and disclosure. Only a `completed` checkout with an order confirms purchase.
+The merchant remains authoritative for freshness, readiness, and whether the instrument is still offered. A spend permission shown by `get_account` explains what the user has granted the agent; checkout status is the completion decision. No separate spend request is needed for `create_checkout` or `complete_checkout`, even when buyer review opens in a browser. API failure or escalation is not permission to switch to a spend request. Report every returned message and disclosure. Only a `completed` checkout with an order confirms purchase.
 
-## Approve a purchase for browser checkout
+## Pay through a website's card form
 
-Choose the purchase path before requesting approval. Shop search results already provide `seller.domain`; use Shop's structured checkout directly.
+Choose the purchase path before requesting approval. Shop search results provide `seller.domain`; use Shop's structured checkout directly.
 
 For a purchase URL, inspect its HTTP headers and HTML. A `powered-by` header naming Shopify, or `rel="buy"` with `dev.shopify.shop_pay` among its payment handlers, identifies a Shop checkout path: use Shop tools with that store. If neither appears on the page, inspect the checkout page before requesting approval.
 
-Use a spend request when API checkout is unavailable and the agent needs to enter a payment credential into a website's checkout form using a browser. Do not use this as a fallback because API checkout failed or requires user escalation.
+Use a spend request only when the chosen path requires entering a card into the website's checkout form. A failed Shop checkout or `requires_escalation` is not permission to switch paths. The buyer reviews the payee, purchase terms, saved card and spending limit before approving the spend request.
 
-The buyer approves the payee, purchase terms, saved card and spending limit in Shop before the agent receives the credential.
+1. Read the site's checkout terms. Use its stated currency and total; never convert prices or invent missing details. Include the business country only when the site states it.
+2. Create one spend request with those terms, a spending limit and a description of the purchase the buyer will recognize. Keep URLs and personal/payment details out of the approval text. Shop uses the preferred saved card unless the buyer chose another; use a returned saved-card id for that choice.
+3. Share `continue_url` so the buyer can review and approve the spend request.
+4. After the buyer approves the request, call `get_spend_request` with `include:"card"` to obtain the issued card.
+5. Enter the issued `card` only into the approved merchant's checkout form, exactly as returned. Keep credentials confined to payment entry or a private handoff file, never chat, logs or other output.
+6. Report the observed merchant result with `complete_spend_request`. Report `success` only when the merchant confirms it, with order details when known. Otherwise report `error` with the observed failure information; keep an unknown charge outcome unknown.
 
-Use `update_spend_request` with `{id,spend_request:{…},meta?}` to change the shipping address, items, totals, or spending limit. Omitted fields stay unchanged. Supplied arrays replace their previous values, and Wallet deep-merges address fields, unlike full-document cart/checkout updates. Wallet decides whether the request's current state allows the update; do not assume that buyer approval makes it editable.
+Updates are partial: send only changed fields to `update_spend_request`. Omitted fields stay unchanged, lists replace their previous values, and supplied address fields merge with the saved address.
 
-1. Observe the actual business and purchase terms.
-2. Call `create_spend_request` once with `spend_request` containing the required `business{name,url}`, `currency`, total, and `approval_limit` in currency minor units. Use the currency the site's checkout charges in; never convert or re-price. If Wallet refuses it (`unsupported_currency`), tell the user; do not retry in another currency. Add `business.country` only when the site states it; omit it rather than infer it from the domain, currency, or shipping address. Omit `instrument_id` to use the account's preferred card; name one only when the user chose a different saved card (ids from `get_account.selectable_instruments[]`, shown by `display.funding_instrument.description` when present, otherwise brand and last digits). Include actual line items and shipping address when available. Always include `context.intent` (required): what is being bought and why, in the user's language — it is the text the user reads on Shop's approval page (100–500 characters; no URLs, card details, emails or addresses). If Wallet refuses it as too short, rewrite it as a full sentence the user would recognize; never pad it. Never invent missing terms. The preferred card is not checkout `selected`, an eligibility guarantee, a credential, or purchase authorization; the user still approves the payee, terms, card, and ceiling in Shop.
-3. Share the returned `continue_url` unchanged. If absent, say the spend request is waiting in Shop; never construct a review link.
-4. Call `get_spend_request` for the returned id, and call it again only after a successful `pending` result. After buyer approval, get returns the payment credential. This is not a read-only operation. Do not run checks concurrently. When a credential is delivered, the response includes `consumed` terms and an `instrument`.
-5. Enter the issued `instrument`'s credential only into the reviewed website's checkout form. Use it exactly as returned and only for the approved purchase. Its `display` describes that issued card. Never repeat its number, expiry, CVV, or name in chat, logs, diagnostics, plans, or error text. `display.funding_instrument` is the user's saved card that pays: name that card to the user, and if the business needs to find the payment, offer the issued card's `display.last_digits`. Present either card's `description`, when present, as is; otherwise use its brand and last digits.
-6. After the purchase attempt, call `complete_spend_request` with the observed `success` or `error`. Report success only from transaction evidence and include order details only if known. For an error, send the observed `failure_code` and optional `message`, preserving any unknown charge outcome. Never include a payment credential. This records your report, not payment confirmation. Follow the recovery section if report acceptance is uncertain.
+`cancel_spend_request` cancels only the request; it does not cancel or refund the merchant's purchase or revoke an issued card. The request's `expires_at` is its approval/retrieval deadline, not card expiry. `consumed` alone proves neither card delivery nor merchant payment.
 
-`expires_at` is the spend request's deadline for its next step (`pending`: approve by; `approved`: retrieve the credential by), not the card's expiry. `consumed` without an `instrument` does not establish credential delivery or payment. Never create a replacement spend request merely to recover an uncertain issuance.
+Use `display.funding_instrument` to name the saved card funding the purchase; the issued card's `display.last_digits` identifies the payment to the merchant. Present returned description labels as is, otherwise brand and last digits.
 
-For create, a caller `meta.idempotency-key` identifies one exact intent. Without a key, each call is new: if no spend-request ID returned, report the outcome unknown and stop. Update and cancel may reuse their original key after uncertainty. `cancel_spend_request` cancels the spend request; this does not cancel/refund the purchase or revoke an issued credential.
+If an error is returned, follow its retry guidance. If the operation cannot complete, report the error. An error recording the purchase result does not mean the purchase failed.
 
 ## Recover a write
 
-Trust returned state when it resolves the outcome. After a timeout or ambiguous write, read the resource first. Except for checkout completion and spend-request reporting, repeat only the exact original request with the same idempotency key; never start a new purchase or spend request to recover an uncertain one. If a create returned no ID and had no key, report the outcome unknown and stop. Preserve successful results from other merchants.
+Trust returned state when it resolves the outcome. Spend-request failures follow the rule above instead. For a timeout or ambiguous cart or checkout write, read the resource first. Except for checkout completion, repeat only the exact original request with the same idempotency key; never start a new purchase or spend request to recover an uncertain one. If a create returned no ID and had no key, report the outcome unknown and stop. Preserve successful results from other merchants.
 
 `complete_checkout` is excluded from repetition, even with the same key. After an uncertain completion, read `get_checkout`; only `completed` with an `order` confirms the purchase. Report any other state, or a failed read, as not confirmed; give the user a returned `continue_url` and stop. Never complete again or buy a replacement to recover it.
 
-`complete_spend_request` has no idempotency key. If its recording is uncertain, report that uncertainty and stop rather than repeating the report. A later `get_spend_request` does not expose the stored report and cannot confirm that recording; it can also issue or return a credential.
-
 ## Use the user's Shop account
 
-`get_account` reads the connected Shop identity and wallet: saved addresses, delegated spending budget, and saved payment methods with the account's preferred card. `search_orders` reads the account's Shop-tracked order history. Use these operations to understand the user and complete their task; a successful `get_account` also confirms that Shop is connected.
+`get_account` reads the connected Shop identity and wallet: saved addresses, the spend permissions the buyer has granted the agent, and saved payment methods with the account's preferred card. `search_orders` reads the account's Shop-tracked order history. Use these operations to understand the user and complete their task; a successful `get_account` also confirms that Shop is connected.
 
 On `auth_required`, follow the binding's sign-in path, then retry. A missing field means no result was returned; use messages to distinguish a skipped read from an unavailable one. An empty list means the field was checked and nothing was available. Use only returned information. Do not copy `buyer.email` into checkout. Copy a selected `addresses[]` entry unchanged when checkout needs a saved delivery address.
 

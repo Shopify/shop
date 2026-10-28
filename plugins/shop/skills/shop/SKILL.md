@@ -1,6 +1,6 @@
 ---
 name: shop
-description: Finds products and manages carts, checkout, purchases, and Shop orders. Use also for Shop account data, delegated budgets, and buyer approval and payment credentials for purchases an agent makes using a browser.
+description: Finds products and nearby stores; manages carts, checkout, purchases, and Shop orders. Use also for Shop account data, spend permissions, and buyer approval and payment credentials for purchases an agent makes using a browser.
 ---
 
 # Shop
@@ -36,15 +36,18 @@ This is notation, not JSON. `?` means optional. Replace `RESOURCE` with `cart` o
 | `search_catalog` | `{catalog:{query?,like?,context?,filters?,pagination?}}` |
 | `lookup_catalog` | `{catalog:{ids:[id_or_url],context?,filters?}}`; 1 to 50 IDs, URLs, GTINs, or UPCs. |
 | `get_product` | `{catalog:{id,selected?:[{name,label}],context?,filters?}}` |
+| `search_locations` | `{shop,location:{query?,distance?:{center:{latitude,longitude},max},filters?:{items?:[variant_id]},context?,pagination?}}` |
+| `lookup_locations` | `{shop,location:{ids:[location_id],distance?,filters?,context?}}` |
 | `create_cart`, `create_checkout` | `{shop,RESOURCE:{line_items:[{item:{id:variant_id},quantity}]}}` |
 | `get_cart`, `get_checkout` | `{shop,id}` |
 | `update_cart`, `update_checkout` | `{shop,id,RESOURCE:full_document}` |
 | `complete_checkout` | `{shop,id,checkout:{payment:{instruments:[offered_instrument_with_selected_true]}}}`. |
 | `get_account` | `{}` |
-| `create_spend_request` | `{spend_request:{business:{name,url,country?},currency,line_items?,totals,shipping_address?,instrument_id?,approval_limit,context:{intent}},meta?}`; for payment credential entry using a browser. |
-| `get_spend_request`, `cancel_spend_request` | `{id}`; cancel may add `meta`. Get may issue/replay a credential and is not read-only. |
-| `update_spend_request` | `{id,spend_request:{shipping_address?,line_items?,totals?,approval_limit?},meta?}`. |
-| `complete_spend_request` | `{id,result:{status:"success",order?:{id?,permalink_url?,total?,currency?}}}` or `{id,result:{status:"error",failure_code,message?}}`; present optional fields are non-null. |
+| `create_spend_request` | `{spend_request,meta?}`; purchase terms, spending limit and buyer-facing `context.intent` per the tool schema. |
+| `get_spend_request` | `{id,include?:"card"}`; omit `include` for status and terms; request `"card"` for approval/card retrieval. |
+| `cancel_spend_request` | `{id,meta?}`; cancels the spend request. |
+| `update_spend_request` | `{id,spend_request:changed_fields,meta?}`; partial update, lists replace. |
+| `complete_spend_request` | `{id,result:{status:"success",order?}}` or `{id,result:{status:"error",failure_code,message?}}`; reports the observed merchant result. |
 | `search_orders` | `{orders:{query?,filters?:{status?,date?:{from?,to?}},pagination?}}`; in-progress orders by default; `status:"all"` searches the full order history. |
 
 Use `seller.domain` for `shop`. Keep merchants separate. Copy returned IDs and URLs exactly, with every query parameter; do not rebuild or shorten them.
@@ -66,10 +69,13 @@ Call `search_catalog` with these arguments for size M rain jackets at most 80 CA
 - `pagination:{limit?,cursor?}`: limit 1 to 50, default 10. Use the returned cursor with unchanged search inputs.
 
 Search applies availability filtering by default. Inspect `messages[]` for applied filters, conversion details, and ignored inputs. Offers may use other currencies; preserve each offer's returned price and currency. Do not drop hard requirements. Repeat relevant context and filters on each catalog call. Search shows one option combination. Size filters and size lists do not prove that combination is in stock. Use `get_product` only for missing facts or another option combination. Copy returned option names and labels. Before recommending or creating a cart or checkout, verify that the selected options match the request. Confirm that selection's stock and price. For additional filters, option relaxation, or comparing prices across currencies, read [catalog.md](references/catalog.md).
+### Stores
+
+`search_locations` finds a shop's physical stores; `lookup_locations` retrieves the stores for location IDs you already hold. `shop` is the offer's `seller.domain`. Search by place (`query`: city, neighborhood, street or postal code, as the user said it), by radius (`distance`: only with coordinates the user or host supplied — never guess a center), or by item (`filters.items` with the offer's variant IDs, to find stores that carry them). Read `messages[]` and `next[]`: they say when a shop has no store directory, when nothing matched, and how to refine.
 ### Cart and checkout
 
 Prefer Shop/UCP checkout when available; it needs no separate spend request. For a purchase the agent must complete through a website's card form using a browser, follow the spend-request flow in [transactions.md](references/transactions.md).
 
 Create or update only on request. Estimate tentative changes without editing. Use `create_checkout` to prepare checkout, or `create_cart` for a requested cart. Use exact variant IDs and quantities. Return each merchant's complete `continue_url` alongside its items, even when you could complete the purchase yourself. Display every warning; informational messages should be displayed. Keep disclosures visible at their referenced target with supplied images and links. If the medium cannot comply, use a supplied buyer-review link or explain the limitation. For `requires_escalation`, ask the user to open the checkout link and finish the required step. Only `status:completed` with an `order` confirms a purchase. If checkout reports missing delivery details, call `get_account`. Copy one `addresses[]` entry unchanged into the checkout update's `fulfillment.methods[].destinations[]`, and set that method's `selected_destination_id` to the entry's `id`. Prefer the entry named by `preferred_address_id` unless the user names another. Never invent or edit address fields, and keep the normal buyer confirmation before completion.
 
-Before an edit, read the edit section of [transactions.md](references/transactions.md) and get current state. Cart/checkout updates replace the full document. Copy current state, then change only requested fields. Preserve line IDs, unrelated fields, empty objects/arrays, and unknown extensions. When preparing the full mutation document, exclude the response-only root `next`; remove fetched `signals` and `attribution`. Never send only changed fields for those updates. Before completion, read the purchase section of [transactions.md](references/transactions.md). Purchase requires explicit approval of the merchant, items, quantities, current total, and the offered checkout instrument. After an uncertain write, reconcile by reading the resource or repeating the original keyed request. Keep the same arguments/key; never start a new purchase or replace a spend request merely to recover that operation. Never repeat `complete_checkout`, even with the same key; reconcile an uncertain completion only by reading `get_checkout`. If no allowed path resolves it, report unknown and stop. For account details or orders, read the relevant section of [transactions.md](references/transactions.md).
+Before an edit, read the edit section of [transactions.md](references/transactions.md) and get current state. Cart/checkout updates replace the full document. Copy current state, then change only requested fields. Preserve line IDs, unrelated fields, empty objects/arrays, and unknown extensions. When preparing the full mutation document, exclude the response-only root `next`; remove fetched `signals` and `attribution`. Never send only changed fields for those updates. Before completion, read the purchase section of [transactions.md](references/transactions.md). Purchase requires explicit approval of the merchant, items, quantities, current total, and the offered checkout instrument. After an uncertain cart or checkout write, reconcile by reading the resource or repeating the original keyed request. Keep the same arguments/key; never start a new purchase or replace a spend request merely to recover that operation. Never repeat `complete_checkout`, even with the same key; reconcile an uncertain completion only by reading `get_checkout`. If no allowed path resolves it, report unknown and stop. For account details or orders, read the relevant section of [transactions.md](references/transactions.md).
