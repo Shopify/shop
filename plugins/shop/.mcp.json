@@ -2,7 +2,12 @@
   "mcpServers": {
     "shop": {
       "type": "http",
-      "url": "https://mcp.shop.com"
+      "url": "https://mcp.shop.com",
+      "oauth": {
+        "clientId": "5c733ab2-1903-400a-891e-7ba20c09e2a3",
+        "callbackPort": 12345,
+        "callbackUrl": "http://127.0.0.1:12345/callback"
+      }
     }
   }
 }

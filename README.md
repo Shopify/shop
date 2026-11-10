@@ -91,7 +91,7 @@ shop search --like-id gid://shopify/p/7Qk2mN9pR4sT6vW8xY0zA1 --limit 3
 shop search "trail shoes" --intent "wide feet, wet Pacific Northwest trails" --currency USD --price-max 20000 --size 11
 ```
 
-Every variant also has a `checkout_url`, a buy-now link to the merchant's checkout. A shopper signed in to Shop sees a one-tap review screen there. They can approve the purchase as it is, or change the delivery option, payment method, discounts, and more first.
+A variant may also include `checkout_url`, a buy-now link to the merchant's checkout. A shopper signed in to Shop sees a one-tap review screen there. They can approve the purchase as it is, or change the delivery option, payment method, discounts, and more first.
 
 ## Sign in for personalization and accelerated checkout
 
@@ -161,7 +161,7 @@ shop account
     }],
     "selectable_instruments": [{
       "id": "3f1e2d4c-5b6a-4789-8abc-def012345678",
-      "type": "shop_pay",
+      "handler_id": "shop_pay", "type": "shop_pay",
       "display": { "funding_instrument": { "type": "card", "brand": "visa", "last_digits": "4242" } }
     }],
     "preferred_instrument_id": "3f1e2d4c-5b6a-4789-8abc-def012345678",
@@ -178,7 +178,7 @@ The response has the shopper's saved details, each with an `id`:
 - `selectable_instruments`: saved Shop Pay cards. `preferred_instrument_id` is the one the shopper prefers.
 - `spend_permissions`: what the shopper allowed this agent to spend ahead of time on shop.com. Each may set a total `limit`, a `per_purchase_limit` and a `period` after which the limit starts over (none means it never does), in minor units of its own currency, and shows how much of the limit remains; a permission can also set no money limit at all. Within a permission, the agent can complete Shop Pay purchases without asking for approval each time. When it is missing, `messages` says why.
 
-When a checkout needs a destination or a payment instrument, the agent passes one of these `id`s. It never types an address or asks for a card number.
+When checkout needs a saved delivery address, copy the selected returned address unchanged. Account card ids select a saved card for a spend request; checkout completion instead takes one complete instrument object returned by that checkout. Never ask for a card number.
 
 ## Create a pre-filled checkout
 
@@ -221,7 +221,7 @@ The checkout's `status` says what happens next:
 2. Applies the patch to that copy.
 3. Sends the merchant the full updated document.
 
-An edit to a line must first `test` that line's `id`. If the checkout changed after the CLI read it, the edit then fails instead of changing the wrong line:
+An edit to a line must first `test` that line's `id`. If the fetched line does not match the tested id, the CLI sends no update; this does not protect against merchant changes after that read:
 
 ```sh
 shop checkout update gid://shopify/Checkout/… --shop example-store.com \
@@ -234,7 +234,7 @@ Pass one of the instruments the checkout offered in `payment.instruments`. The C
 
 ```sh
 shop checkout complete gid://shopify/Checkout/… --shop example-store.com \
-  --instrument '{"id":"instrument-a","handler_id":"shop_pay","type":"shop_pay","credential":{"type":"shop_token"}}'
+  --instrument '{"id":"instrument-a","handler_id":"shop_pay","type":"shop_pay","display":{"funding_instrument":{"brand":"visa","last_digits":"4242"}}}'
 ```
 
 <details>
@@ -289,7 +289,7 @@ Some stores have no agent checkout API (UCP); the agent has to enter a payment c
 
 1. The agent describes the purchase with `shop spend-request create`.
 2. The shopper reviews and approves it on Shop.
-3. `shop spend-request get` returns a one-time credential that fills the card fields of the site's checkout form, good for up to the `approval_limit` the shopper saw and approved.
+3. `shop spend-request get --include card` explicitly requests the issued card for the shopper-approved purchase; plain get reads status and terms only.
 4. The agent pays at the site's checkout and reports the outcome with `shop spend-request complete`.
 
 `--intent` is required: describe the purchase and rationale in the shopper's language (100–500 characters; no links, card details, emails or addresses) — it is what they read on the Shop approval page. In `--arguments` it is `context.intent`. `--instrument-id` names one of the `selectable_instruments` from `shop account`; omit it to use the shopper's preferred card. `--currency` is the code the site's checkout charges in; never convert. `--business-country` is the business's two-letter country when the site states it; omit it rather than guess. Nested values such as line items take JSON, a `@file`, or `-` for stdin:
@@ -326,11 +326,13 @@ shop spend-request create \
 
 </details>
 
-Give the shopper the `continue_url`, then wait for their approval. `--output-file` keeps the credential out of the transcript: the issued instrument is written to a new file only you can read, and stdout carries the status and terms:
+Give the shopper the `continue_url`, then wait for their approval. To keep the credential out of the transcript, explicitly request the card and export it to a new file:
 
 ```sh
-shop spend-request get 0198e63b-1234-7abc-8def-123456789abc --wait 90 --output-file ./card.json
+shop spend-request get 0198e63b-1234-7abc-8def-123456789abc --include card --wait 90 --output-file ./card.json
 ```
+
+`--output-file` requires `--include card`. It writes a new file and refuses to overwrite an existing path. On POSIX, the file mode is `0600`. On Windows, the file inherits the chosen directory's permissions, so choose a private directory. Stdout replaces `card` with `credential_output_file`:
 
 <details>
 <summary>Example output</summary>
@@ -340,7 +342,7 @@ shop spend-request get 0198e63b-1234-7abc-8def-123456789abc --wait 90 --output-f
   "ok": true, "v": 1,
   "data": {
     "status": "consumed",
-    "credential_output_file": "./card.json"
+    "credential_output_file": "/absolute/path/card.json"
     // …terms as approved
   }
 }
@@ -350,9 +352,10 @@ shop spend-request get 0198e63b-1234-7abc-8def-123456789abc --wait 90 --output-f
 // card.json
 {
   "spend_request_id": "0198e63b-1234-7abc-8def-123456789abc",
-  "instrument": {
+  "card": {
+    "id": "…",
     "type": "card",
-    "display": { "last_digits": "…" },
+    "display": { "last_digits": "…", "funding_instrument": { "type": "card", "brand": "visa", "last_digits": "…" } },
     "credential": { "type": "pan", "number": "5556…", "expiry_month": "…", "expiry_year": "…", "cvv": "…", "name": "Ada Lovelace" },
     "billing_address": { "street_address": "1 Example Way", "address_locality": "London", "address_country": "GB", "postal_code": "SW1A 1AA" }
   }
@@ -361,7 +364,7 @@ shop spend-request get 0198e63b-1234-7abc-8def-123456789abc --wait 90 --output-f
 
 </details>
 
-The credential arrives when the status is `consumed`. Hand the file to the program that fills the checkout form; without `--output-file`, the instrument is returned inline instead.
+With `--include card` and without `--output-file`, the CLI returns root `card` in stdout. A `consumed` status alone proves neither card delivery nor payment; use the returned `card` or successfully exported card file. Direct MCP clients also receive root `card` from `get_spend_request` with `include: "card"`.
 
 After paying at the site's checkout, the agent reports the outcome:
 
@@ -403,8 +406,30 @@ shop tools                                                                      
 To use the server without the CLI:
 
 - Connect an MCP host to `https://mcp.shop.com/` to access the same tools. Sign-in goes through the host's OAuth flow, against the same Shop account, and the tools behave as they do in the CLI.
+
+For Claude Code, install the native plugin:
+
+```sh
+claude plugin marketplace add Shopify/shop
+claude plugin install shop@shop
+```
+
+Or configure an explicit public-client connection instead of a URL-only automatic-registration path:
+
+```sh
+claude mcp add --transport http --client-id 5c733ab2-1903-400a-891e-7ba20c09e2a3 --callback-port 12345 shop https://mcp.shop.com
+```
+
+For Codex, install `shop` from the `Shopify/shop` plugin marketplace using the [native plugin installation workflow](https://developers.openai.com/plugins/):
+
+```sh
+codex plugin marketplace add Shopify/shop
+codex plugin add shop@shop
+codex --enable mcp_2026_07_28
+```
+
 - A host that supports the skills extension ([SEP-2640](https://modelcontextprotocol.io/seps/2640-skills-extension)) finds the server's skill with `skills/list` on the same connection and reads its files with `resources/read`, so there is nothing to install. This package bundles the same skill.
-- A backend that already holds a Shop token for this resource can hand it to the CLI as `SHOP_ACCESS_TOKEN`; the CLI sends it unchanged, never stores or refreshes it, and a rejected token says whether to mint a fresh one (401) or widen the grant (403). The full contract is in the CLI guide.
+- A backend that already holds a Shop token for this resource can hand it to the CLI as `SHOP_ACCESS_TOKEN`; the CLI sends it unchanged, never stores or refreshes it, and a rejected token says whether to mint a fresh one (401) or widen the grant (403). The supplying backend owns renewal and consent.
 
 Install the skill from an installed `shop` command:
 
@@ -422,7 +447,7 @@ shop tools                  # every command with its MCP tool, usage and schema,
 shop skill                  # the bundled agent guidance, as prose
 ```
 
-Every command accepts `--arguments <JSON|@FILE|->` with the complete argument object from `--schema`.
+Every operation command accepts `--arguments <JSON|@FILE|->` with the complete argument object from `--schema`; built-ins and account login/logout do not.
 
 | Exit | Meaning |
 | --- | --- |

@@ -20,6 +20,18 @@ shop location lookup '<location-id>' --shop '<seller.domain>' --item '<variant-i
 
 The three distance flags travel together. `--item` repeats or takes a comma-separated list; `--country` helps resolve the variants. Read `messages[]` and `next[]` in the result.
 
+## Ask the business
+
+Ask a shop a free-form question; optionally ground it in one or more of the shop's resources with `--id` — a variant from a catalog result, a collection, a cart `id` as the cart returned it — and add the buyer's country, currency and language when the answer depends on them:
+
+```sh
+shop ask 'What is your return window, and who pays return shipping?' --shop '<seller.domain>'
+shop ask 'What is this made of, and where is it made?' --shop '<seller.domain>' --id '<variant-id>' --country CA --currency CAD --language en
+shop ask 'Which of these come in a size 10?' --shop '<seller.domain>' --id '<collection-id>,<variant-id>'
+```
+
+`--id` repeats or takes a comma-separated list; a cart grounds the products in it. The answer is the business's own statement; `messages[]` name IDs the shop did not use, `next[]` what to do with the document. `--format md` prints the answer as prose.
+
 ## Cart to checkout
 
 Create checkout from a returned cart:
