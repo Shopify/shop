@@ -14,6 +14,10 @@ Use these fields only when the request needs them. Add them inside `catalog`; ke
 
 Rating thresholds require at least one matching variant, not a product-wide average. Category, condition, origin, and price-tier lists use OR. Different filters use AND. Use known taxonomy IDs and condition values. Read messages for unsupported values. Country codes use two uppercase letters. Currency codes use three uppercase letters.
 
+## Match a known item
+
+Use `lookup_catalog` for public product URLs, product or variant IDs, GTINs, or UPCs, including items found elsewhere. Results need not match input count or order: correlate each returned variant's `inputs[]` with the supplied identifier, never by array position. An `exact` resolution directly identifies that variant; `featured` selects a representative, not necessarily the requested size or color. Confirm product, seller, and selected options before transferring facts between sources. Use a returned product ID for `get_product`, not the original URL or a variant ID. Skip it when search or lookup already proves the requested variant's facts.
+
 ## Price and currency
 
 `context.currency` expresses the user's preferred currency and sets the currency of specified price limits; `min` and `max` use minor units in that currency. Catalog converts limits to apply price filters across currencies of matching offers. Returned offers keep their own price and currency.

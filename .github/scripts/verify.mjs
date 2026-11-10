@@ -1,6 +1,6 @@
 // Gate for Shopify/shop. Proves that the checkout is a complete, runnable @shopify/shop
 // package plus repository configuration, and that package contents change only through
-// releases. Node >= 22, built-ins only, no install step.
+// releases. Node >=22.21.0 <23 or >=24.5.0, built-ins only, no install step.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,7 +13,7 @@ const PACKAGE_NAME = '@shopify/shop';
 // A trailing slash covers a directory.
 const GOVERNANCE = ['.github/', '.gitattributes', '.gitignore', 'SECURITY.md', 'CODE_OF_CONDUCT.md'];
 const PLUGIN_MANIFESTS = [
-  'plugins/shop/plugin.json',
+  'plugins/shop/.codex-plugin/plugin.json',
   'plugins/shop/.claude-plugin/plugin.json',
   'plugins/shop/.cursor-plugin/plugin.json',
 ];
@@ -23,8 +23,8 @@ const PLUGIN_LOGOS = ['assets/logo.svg', 'assets/logo.png'];
 const LOGO_FIELDS = [
   ['plugins/shop/.cursor-plugin/plugin.json', ['logo']],
   ['plugins/shop/.claude-plugin/plugin.json', ['icon']],
-  ['plugins/shop/plugin.json', ['extensions', 'com.openai', 'interface', 'logo']],
-  ['plugins/shop/plugin.json', ['extensions', 'com.openai', 'interface', 'composerIcon']],
+  ['plugins/shop/.codex-plugin/plugin.json', ['interface', 'logo']],
+  ['plugins/shop/.codex-plugin/plugin.json', ['interface', 'composerIcon']],
 ];
 
 const native = (posixPath) => join(root, ...posixPath.split('/'));
@@ -76,6 +76,19 @@ async function main() {
     const plugin = readJson(manifest);
     assert.ok(plugin.version === version, `${manifest}: version ${plugin.version} differs from package.json (${version})`);
   }
+  assert.ok(!existsSync(native('plugins/shop/plugin.json')), 'portable root plugin.json must be absent');
+  const codex = readJson('plugins/shop/.codex-plugin/plugin.json');
+  assert.ok(!Object.hasOwn(codex, '$schema') && !Object.hasOwn(codex, 'extensions'), 'Codex requires a native manifest');
+  assert.equal(codex.mcpServers, './.mcp.json');
+  assert.deepEqual(readJson('plugins/shop/.mcp.json'), { mcpServers: { shop: {
+    type: 'http', url: 'https://mcp.shop.com', oauth: {
+      clientId: '5c733ab2-1903-400a-891e-7ba20c09e2a3', callbackPort: 12345,
+      callbackUrl: 'http://127.0.0.1:12345/callback',
+    },
+  } } }, 'native MCP must carry exactly the public OAuth config, no secret or private auth');
+  const cursorMcp = readJson('plugins/shop/mcp.json');
+  assert.deepEqual(Object.keys(cursorMcp).filter(key => key !== '$schema'), ['mcpServers']);
+  assert.deepEqual(cursorMcp.mcpServers, { shop: { type: 'streamable-http', url: 'https://mcp.shop.com' } });
   pass(`package.json and ${PLUGIN_MANIFESTS.length} plugin manifests carry version ${version}`);
 
   // (b) the tracked files are the package plus repository configuration

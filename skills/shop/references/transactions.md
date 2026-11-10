@@ -57,9 +57,9 @@ Trust returned state when it resolves the outcome. Spend-request failures follow
 
 ## Use the user's Shop account
 
-`get_account` reads the connected Shop identity and wallet: saved addresses, the spend permissions the buyer has granted the agent, and saved payment methods with the account's preferred card. `search_orders` reads the account's Shop-tracked order history. Use these operations to understand the user and complete their task; a successful `get_account` also confirms that Shop is connected.
+`get_account` reads the connected Shop identity and wallet: saved addresses, the spend permissions the buyer has granted the agent, and saved payment methods with the account's preferred card. `search_orders` and `get_order` read the orders and packages Shop tracks for the account. Use these operations to understand the user and complete their task; a successful `get_account` also confirms that Shop is connected.
 
-On `auth_required`, follow the binding's sign-in path, then retry. A missing field means no result was returned; use messages to distinguish a skipped read from an unavailable one. An empty list means the field was checked and nothing was available. Use only returned information. Do not copy `buyer.email` into checkout. Copy a selected `addresses[]` entry unchanged when checkout needs a saved delivery address.
+On `auth_required`, follow the binding's sign-in path, then retry. An operation-local `insufficient_scope` means the agent lacks the access named in `required_scope`: that call was not executed, and other Shop tools are unaffected. Explain the limit; do not retry automatically or switch tools to work around it. A missing field means no result was returned; use messages to distinguish a skipped read from an unavailable one. An empty list means the field was checked and nothing was available. Use only returned information. Do not copy `buyer.email` into checkout. Copy a selected `addresses[]` entry unchanged when checkout needs a saved delivery address.
 
 ## Search orders
 
@@ -73,4 +73,8 @@ Use `search_orders` for personal orders. Sign-in is required. Do not ask for a m
 
 Order prices and totals are integer minor units in the order's `currency`. `XXX` means no known currency; Shop order history uses hundredths, so `1250` represents `12.50` without a currency symbol. Distinguish line totals from a missing order total; never combine amounts with unknown or different currencies into one spending total.
 
-Read returned events, expectations, tracking, and `permalink_url` when present. Even Shopify history can lack `checkout_id` and `permalink_url`; never construct these references or substitute an order ID. Missing data is unknown, not unpaid or undelivered. `quantity.total` is the reported remaining count; missing `quantity.original` does not establish the original checkout count. Use the latest carrier event for shipment status. “Fulfilled” or “label created” does not prove shipment or delivery. Each event's `status` is Shop's raw delivery status; `type` is its coarse, many-to-one UCP mapping. Use the raw status and carrier evidence for detailed shipment state, not `type` alone. Email-derived records can omit prices and tracking. Do not invent purchasable IDs from their line IDs. For a repeat purchase, verify current catalog options, stock, and price. Do not poll or retry throttled order searches. Merchant order lookup, returns, and order cancellation are unsupported.
+Read returned events, expectations, tracking, `permalink_url` and each record's `messages` when present. Missing data is unknown, not zero, unpaid or undelivered: a record can omit `line_items`, and a line can omit its price, totals or quantity. Each `fulfillment.events[]` entry is one shipment's latest known snapshot. “Fulfilled” or “label created” does not prove shipment or delivery.
+
+## Read one order
+
+Use `get_order` to reread an order or package from `search_orders`. Copy its `id` from `orders[]` or `shipments[]` unchanged. Sign-in is required; call it directly without checking the account first.
